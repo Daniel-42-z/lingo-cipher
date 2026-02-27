@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/pflag"
 )
 
 type Cipher struct {
@@ -222,19 +224,32 @@ func WriteCSV(data []Triplet, filename string) {
 }
 
 func main() {
-	wordList, err := MakeWordList("words.txt")
+	var (
+		wordListPath string
+		upperBound   int
+		key          string
+		leading0     bool
+		outputPath   string
+	)
+
+	pflag.StringVarP(&wordListPath, "word-list", "w", "words.txt", "Path to word list used")
+	pflag.IntVarP(&upperBound, "max", "m", 200000, "Max value of the sum (in base 10)")
+	pflag.StringVarP(&key, "key", "k", "wanderlust", "cipher")
+	pflag.BoolVarP(&leading0, "leading0", "0", false, "Whether to start the \"numbers\" list with 0")
+	pflag.StringVarP(&outputPath, "output", "o", "cipher.csv", "File path to output CSV")
+
+	pflag.Parse()
+
+	wordList, err := MakeWordList(wordListPath)
 	if err != nil {
 		fmt.Println("error loading word list:", err)
 		os.Exit(1)
 	}
-	fmt.Println("word list loaded")
-	cipher, err := CipherFromKey("wanderlust", false)
+	cipher, err := CipherFromKey(key, leading0)
 	if err != nil {
 		fmt.Println("error creating cipher:", err)
 		os.Exit(1)
 	}
-	data := cipher.FindValidSums(200000000, wordList)
-	fmt.Println("writing CSV")
-	WriteCSV(data, "wanderlust.csv")
-	fmt.Println("done")
+	data := cipher.FindValidSums(upperBound, wordList)
+	WriteCSV(data, outputPath)
 }
