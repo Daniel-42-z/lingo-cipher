@@ -236,9 +236,19 @@ func main() {
 	pflag.IntVarP(&upperBound, "max", "m", 200000, "Max value of the sum (in base 10)")
 	pflag.StringVarP(&key, "key", "k", "wanderlust", "cipher")
 	pflag.BoolVarP(&leading0, "leading0", "0", false, "Whether to start the \"numbers\" list with 0")
-	pflag.StringVarP(&outputPath, "output", "o", "cipher.csv", "File path to output CSV")
-
+	pflag.StringVarP(&outputPath, "output", "o", "", "File path to output CSV")
+	pflag.Lookup("output").DefValue = "<key>-<max>[-0].csv"
 	pflag.Parse()
+
+	if !pflag.Lookup("output").Changed {
+		suffix := ""
+		if leading0 {
+			suffix = "-0"
+		}
+
+		// Format: key-upperBound[-0].csv
+		outputPath = key + "-" + strconv.Itoa(upperBound) + suffix + ".csv"
+	}
 
 	wordList, err := MakeWordList(wordListPath)
 	if err != nil {
