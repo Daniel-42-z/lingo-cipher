@@ -68,7 +68,7 @@ func MakeNumbers(l int, leading0 bool) ([]rune, error) {
 }
 
 func (c Cipher) FromLetters(letters string) string {
-	numbers := []rune{}
+	numbers := make([]rune, 0, len(letters))
 	for _, l := range letters {
 		numbers = append(numbers, c.letterToNumber[l])
 	}
@@ -76,7 +76,7 @@ func (c Cipher) FromLetters(letters string) string {
 }
 
 func (c Cipher) FromNumbers(numbers string) string {
-	letters := []rune{}
+	letters := make([]rune, 0, len(numbers))
 	for _, n := range numbers {
 		letters = append(letters, c.numberToLetter[n])
 	}
@@ -139,38 +139,56 @@ type Word struct {
 
 type Triplet [3]Word
 
-func (c Cipher) FindValidSums(bound int, wl WordList) []Triplet {
+func (c Cipher) FindValidSums(maxSum int, wl WordList) []Triplet {
 	result := []Triplet{}
-	maxNumber := bound / 2
+	maxNumber := maxSum / 2
 
-	for i := range maxNumber {
-		iNumbers, iLetters := c.fromInt(i)
-		if !IsValidWord(iLetters, wl) {
-			continue
+	validInfo := make([]Word, maxSum)
+	isValid := make([]bool, maxSum)
+	validNumbers := make([]int, 0)
+
+	for k := range maxSum {
+		numbers, letters := c.fromInt(k)
+		if IsValidWord(letters, wl) {
+			validInfo[k] = Word{numbers, letters}
+			isValid[k] = true
+			validNumbers = append(validNumbers, k)
 		}
+	}
 
-		c.checkSums(i, bound, iNumbers, iLetters, wl, &result)
+	for _, i := range validNumbers {
+		if i >= maxNumber {
+			break
+		}
+		iWord := validInfo[i]
+
+		for _, j := range validNumbers {
+			if j < i {
+				continue
+			}
+			if j >= maxNumber {
+				break
+			}
+
+			if isValid[i+j] {
+				result = append(result, Triplet{
+					iWord,
+					validInfo[j],
+					validInfo[i+j],
+				})
+			}
+		}
 	}
 
 	return result
 }
 
-func (c Cipher) checkSums(i, bound int, iNumbers, iLetters string, wl WordList, result *[]Triplet) {
-	for j := i; j < bound; j++ {
-		jNumbers, jLetters := c.fromInt(j)
-		sumNumbers, sumLetters := c.fromInt(i + j)
-
-		if IsValidWord(jLetters, wl) && IsValidWord(sumLetters, wl) {
-			*result = append(*result, Triplet{
-				Word{iNumbers, iLetters},
-				Word{jNumbers, jLetters},
-				Word{sumNumbers, sumLetters},
-			})
-		}
-	}
-}
-
 func (c Cipher) fromInt(val int) (string, string) {
+	if c.base == 10 {
+		numbers := strconv.Itoa(val)
+		letters := c.FromNumbers(numbers)
+		return numbers, letters
+	}
 	numbers := strconv.FormatInt(int64(val), c.base)
 	letters := c.FromNumbers(numbers)
 	return numbers, letters
@@ -210,8 +228,12 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println("word list loaded")
-	cipher, _ := CipherFromKey("wanderlust", false)
-	data := cipher.FindValidSums(10000, wordList)
+	cipher, err := CipherFromKey("wanderlust", false)
+	if err != nil {
+		fmt.Println("error creating cipher:", err)
+		os.Exit(1)
+	}
+	data := cipher.FindValidSums(200000000, wordList)
 	fmt.Println("writing CSV")
 	WriteCSV(data, "wanderlust.csv")
 	fmt.Println("done")
