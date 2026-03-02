@@ -142,8 +142,6 @@ type Word struct {
 type Triplet [3]Word
 
 func (c Cipher) FindValidSums(maxSum int, wl WordList, action func(Triplet)) {
-	maxNumber := maxSum / 2
-
 	validInfo := make(map[int]Word)
 	validNumbers := make([]int, 0)
 
@@ -155,17 +153,20 @@ func (c Cipher) FindValidSums(maxSum int, wl WordList, action func(Triplet)) {
 		}
 	}
 
-	for _, i := range validNumbers {
-		if i >= maxNumber {
+	for idxI, i := range validNumbers {
+		if i*2 >= maxSum {
 			break
 		}
 		iWord := validInfo[i]
 
-		for _, j := range validNumbers {
-			if j < i {
-				continue
-			}
-			if j >= maxNumber {
+		// Calculate the maximum allowed value for j
+		maxJ := maxSum - i
+
+		// Since validNumbers is sorted and we only want j >= i,
+		// we can start iterating directly from idxI to avoid iterating
+		// over all previously checked smaller values.
+		for _, j := range validNumbers[idxI:] {
+			if j >= maxJ {
 				break
 			}
 
