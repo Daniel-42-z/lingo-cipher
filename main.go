@@ -144,15 +144,13 @@ type Triplet [3]Word
 func (c Cipher) FindValidSums(maxSum int, wl WordList, action func(Triplet)) {
 	maxNumber := maxSum / 2
 
-	validInfo := make([]Word, maxSum)
-	isValid := make([]bool, maxSum)
+	validInfo := make(map[int]Word)
 	validNumbers := make([]int, 0)
 
 	for k := range maxSum {
 		numbers, letters := c.fromInt(k)
 		if IsValidWord(letters, wl) {
 			validInfo[k] = Word{numbers, letters}
-			isValid[k] = true
 			validNumbers = append(validNumbers, k)
 		}
 	}
@@ -171,11 +169,11 @@ func (c Cipher) FindValidSums(maxSum int, wl WordList, action func(Triplet)) {
 				break
 			}
 
-			if isValid[i+j] {
+			if sumWord, ok := validInfo[i+j]; ok {
 				action(Triplet{
 					iWord,
 					validInfo[j],
-					validInfo[i+j],
+					sumWord,
 				})
 			}
 		}
