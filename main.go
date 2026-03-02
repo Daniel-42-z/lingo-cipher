@@ -141,8 +141,7 @@ type Word struct {
 
 type Triplet [3]Word
 
-func (c Cipher) FindValidSums(maxSum int, wl WordList) []Triplet {
-	result := []Triplet{}
+func (c Cipher) FindValidSums(maxSum int, wl WordList, action func(Triplet)) {
 	maxNumber := maxSum / 2
 
 	validInfo := make([]Word, maxSum)
@@ -173,7 +172,7 @@ func (c Cipher) FindValidSums(maxSum int, wl WordList) []Triplet {
 			}
 
 			if isValid[i+j] {
-				result = append(result, Triplet{
+				action(Triplet{
 					iWord,
 					validInfo[j],
 					validInfo[i+j],
@@ -181,8 +180,6 @@ func (c Cipher) FindValidSums(maxSum int, wl WordList) []Triplet {
 			}
 		}
 	}
-
-	return result
 }
 
 func (c Cipher) fromInt(val int) (string, string) {
@@ -196,30 +193,13 @@ func (c Cipher) fromInt(val int) (string, string) {
 	return numbers, letters
 }
 
-func WriteCSV(data []Triplet, filename string) {
-	header := []string{"Numbers 1", "Letters 1", "Numbers 2", "Letters 2", "Numbers 3", "Letters 3"}
-	table := [][]string{header}
-	for _, t := range data {
-		table = append(table, []string{t[0].numbers, t[0].letters, t[1].numbers, t[1].letters, t[2].numbers, t[2].letters})
-	}
-
-	file, err := os.Create(filename)
-	if err != nil {
-		panic(err)
-	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			panic(err)
+func MakeCSVWriterAction(w *csv.Writer) func(Triplet) {
+	return func(t Triplet) {
+		record := []string{t[0].numbers, t[0].letters, t[1].numbers, t[1].letters, t[2].numbers, t[2].letters}
+		if err := w.Write(record); err != nil {
+			fmt.Println("error writing to csv:", err)
+			os.Exit(1)
 		}
-	}()
-
-	w := csv.NewWriter(file)
-	if err := w.WriteAll(table); err != nil {
-		panic(err)
-	}
-
-	if err := w.Error(); err != nil {
-		panic(err)
 	}
 }
 
@@ -260,6 +240,32 @@ func main() {
 		fmt.Println("error creating cipher:", err)
 		os.Exit(1)
 	}
-	data := cipher.FindValidSums(upperBound, wordList)
-	WriteCSV(data, outputPath)
+
+	file, err := os.Create(outputPath)
+	if err != nil {
+		fmt.Println("error creating csv file:", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Println("error closing csv file:", err)
+			os.Exit(1)
+		}
+	}()
+
+	w := csv.NewWriter(file)
+	defer w.Flush()
+
+	header := []string{"Numbers 1", "Letters 1", "Numbers 2", "Letters 2", "Numbers 3", "Letters 3"}
+	if err := w.Write(header); err != nil {
+		fmt.Println("error writing csv header:", err)
+		os.Exit(1)
+	}
+
+	cipher.FindValidSums(upperBound, wordList, MakeCSVWriterAction(w))
+
+	if err := w.Error(); err != nil {
+		fmt.Println("error flushing csv:", err)
+		os.Exit(1)
+	}
 }
